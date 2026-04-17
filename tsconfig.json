@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"target": "esnext",
+		"experimentalDecorators": true,
+		"strict": true,
+		"allowJs": true,
+		"jsx": "preserve",
+		"declarationDir": "./types",
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"types": [
+			"node"
+		],
+	},
+	"include": [
+		"**/*.js",
+		"types.ts",
+	],
+	"exclude": [
+		"eslint.config.js",
+		"node_modules",
+		"test",
+	]
+}
