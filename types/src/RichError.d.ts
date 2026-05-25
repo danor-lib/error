@@ -4,10 +4,10 @@ import type { RichErrorOption } from '../types.d.ts';
 
 export class RichError extends Error {
 	/**
-	 * @param {string} [message] A human-readable description of the error
+	 * RichError
 	 * @param {RichErrorOption} [options]
 	 */
-	constructor(message?: string, options?: RichErrorOption);
+	constructor(options?: RichErrorOption);
 
 
 	/** A lower-case slug string that identifies the specific error type or category */
@@ -16,13 +16,20 @@ export class RichError extends Error {
 	at?: string;
 	/** Additional contextual data associated with the error occurrence */
 	data?: unknown;
+	/** A pruned version of `.data` */
+	datasPruned?: string[];
+	/** A function for pruning `.data` */
+	pruner?: (data: unknown) => string[]|Promise<string[]>;
 	/** A boolean flag indicating whether the error is internal and should not be exposed to end users */
 	internal?: boolean;
 
 
 	/** Return the first error in the error chain based on the `cause` property */
 	get root(): Error;
-}
 
-/** Return a value type-identifier string. */
-export function RichError(message?: string, options?: RichErrorOption): RichError;
+	/**
+	 * Prune data with pruner function
+	 * @returns {Promise<string[]>}
+	 */
+	prune(): Promise<string[]>;
+}

@@ -13,7 +13,7 @@
 
 A lightweight error enhancement and type identification utility, suitable for both Node.js and browser environments.
 
-`RichError` extends the native `Error` object, supporting additional error codes, context data, location information, internal flags, and error chaining, while also providing cleaner stack traces.  
+`RichError` extends the native `Error` object, supporting additional error codes, context data, location information, internal flags, and error chaining, while also providing cleaner stack traces.\
 `vof` is a compact helper function that generates more readable value type description strings.
 
 ## Basic Example
@@ -23,21 +23,28 @@ import { RichError, vof } from '@danor-lib/error';
 
 // --- Create an enhanced error ---
 try {
-  throw new RichError('Failed to parse binary data', {
+  throw new RichError({
+    message: 'Failed to parse binary data',
     code: 'error-parse-data',
     at: 'Biffer.unpack',
     data: { offset: 0x10, expected: '4s' },
+    pruner: (data) => `{${data.expected}} at ${data.offset}`
     cause: new Error('Insufficient buffer length'),
-    internal: false
+    internal: false,
   });
-} catch (err) {
-  console.error(err.message);        // 'Failed to parse binary data'
-  console.error(err.code);           // 'error-parse-data'
-  console.error(err.at);             // 'Biffer.unpack'
-  console.error(err.data);           // { offset: 0x10, expected: '4s' }
-  console.error(err.cause);          // Error: Insufficient buffer length
-  console.error(err.stack);          // Stack trace automatically cleaned of RichError constructor lines
-  console.error(err.root);           // Returns the original error at the bottom of the error chain
+} catch (error) {
+  console.error(error.message);        // 'Failed to parse binary data'
+  console.error(error.code);           // 'error-parse-data'
+  console.error(error.at);             // 'Biffer.unpack'
+  console.error(error.data);           // { offset: 0x10, expected: '4s' }
+  console.error(error.datasPruned);    // undefined
+  console.error(error.pruner);         // Function
+  console.error(error.cause);          // Error: Insufficient buffer length
+  console.error(error.stack);          // Stack trace automatically cleaned of RichError constructor lines
+  console.error(error.root);           // Returns the original error at the bottom of the error chain
+  
+  await error.prune();
+  console.error(error.datasPruned);    // '{4s} at 16'
 }
 
 // --- Type identification (vof) ---
@@ -50,24 +57,26 @@ console.log(vof(''));                // '<is:empty-string>'
 
 ## Core Concepts
 
-`@danor-lib/error` provides two core exports:
+`@danor-lib/error` provides two non-side-effect core exports:
 
-| Export      | Type                 | Description                                                                         |
-| :---------- | :------------------- | :---------------------------------------------------------------------------------- |
-| `RichError` | `class` / `function` | Enhanced error class supporting metadata and error chain management.                |
-| `vof`       | `function`           | Returns a type identification string for a value, useful for debugging and logging. |
+| Export      | Type       | Description                                                                         |
+| :---------- | :--------- | :---------------------------------------------------------------------------------- |
+| `RichError` | `class`    | Enhanced error class supporting metadata and error chain management.                |
+| `vof`       | `function` | Returns a type identification string for a value, useful for debugging and logging. |
 
 ### `RichError` Options
 
 When creating a `RichError`, you can pass a second `options` object argument to attach additional information:
 
-| Property   | Type      | Description                                                                                  |
-| :--------- | :-------- | :------------------------------------------------------------------------------------------- |
-| `code`     | `string`  | Error code for categorization or programmatic identification. Slug style recommended.        |
-| `at`       | `string`  | Identifies the approximate location or method name where the error occurred.                 |
-| `data`     | `any`     | Arbitrary context data for debugging.                                                        |
-| `internal` | `boolean` | Indicates whether it's an internal error, useful for distinguishing user-facing information. |
-| `cause`    | `Error`   | The original error that caused the current error (conforms to `Error.cause` specification).  |
+| Property      | Type       | Description                                                                                  |
+| :------------ | :--------- | :------------------------------------------------------------------------------------------- |
+| `code`        | `string`   | Error code for categorization or programmatic identification. Slug style recommended.        |
+| `at`          | `string`   | Identifies the approximate location or method name where the error occurred.                 |
+| `data`        | `any`      | Arbitrary context data for debugging.                                                        |
+| `datasPruned` | `string[]` | Pruned context data.                                                                         |
+| `pruner`      | `Function` | Prunes context data when needed to prevent excessive memory usage.                           |
+| `internal`    | `boolean`  | Indicates whether it's an internal error, useful for distinguishing user-facing information. |
+| `cause`       | `Error`    | The original error that caused the current error (conforms to `Error.cause` specification).  |
 
 ## Static Methods
 
@@ -96,19 +105,18 @@ console.log(vof(() => {}));               // 'function (anonymous) <is:function>
 console.log(vof(function test() {}));     // 'function test <is:function>'
 ```
 
-## `RichError` Constructor and Instance Properties
+## `RichError` Constructor and Instance Properties/Methods
 
-### `new RichError(message?, options?)`
+### `new RichError(options?)`
 
-Creates a new `RichError` instance. Supports direct `new` invocation or calling as a normal function (e.g., `RichError(...)`). Internally handles the prototype chain correctly, ensuring `instanceof` behavior is as expected.
+Creates a new `RichError` instance.
 
 - **Parameters**:
-  - `message` `{string}` `optional` - Human-readable error description.
-  - `options` `{Object}` `optional` - Configuration options (see table above).
+  - `options` `{RichError}` `optional` - Configuration options (see table above).
 
 ```javascript
-const err = new RichError('Operation timed out', {
-  code: 'ETIMEOUT',
+const err = new RichError({
+  code: 'timeout',
   at: 'fetchData',
   data: { url: '/api/data' }
 });
@@ -116,19 +124,25 @@ const err = new RichError('Operation timed out', {
 
 ### Instance Properties
 
-| Property   | Type                            | Description                                                                   |
-| :--------- | :------------------------------ | :---------------------------------------------------------------------------- |
-| `name`     | `string`                        | Error name, fixed to `'RichError'` (or subclass name if inherited).           |
-| `message`  | `string`                        | Error description message.                                                    |
-| `stack`    | `string \| undefined`           | Stack trace string (automatically removes the `RichError` constructor lines). |
-| `code`     | `number \| string \| undefined` | The error code provided.                                                      |
-| `at`       | `string \| undefined`           | The location identifier provided.                                             |
-| `data`     | `any \| undefined`              | The context data provided.                                                    |
-| `internal` | `boolean \| undefined`          | Flag indicating whether it is an internal error.                              |
-| `cause`    | `Error \| undefined`            | The original error (set via `options.cause`).                                 |
+| Property      | Type                            | Description                                                                   |
+| :------------ | :------------------------------ | :---------------------------------------------------------------------------- |
+| `name`        | `string`                        | Error name, fixed to `'RichError'` (or subclass name if inherited).           |
+| `message`     | `string`                        | Error description message.                                                    |
+| `stack`       | `string \| undefined`           | Stack trace string (automatically removes the `RichError` constructor lines). |
+| `code`        | `number \| string \| undefined` | The error code provided.                                                      |
+| `at`          | `string \| undefined`           | The location identifier provided.                                             |
+| `data`        | `any \| undefined`              | The context data provided.                                                    |
+| `datasPruned` | `string[] \| undefined`         | Pruned context data.                                                          |
+| `pruner`      | `Function \| undefined`         | Context data pruner.                                                          |
+| `internal`    | `boolean \| undefined`          | Flag indicating whether it is an internal error.                              |
+| `cause`       | `Error \| undefined`            | The original error (set via `options.cause`).                                 |
 
-### `root` (getter)
+### Instance Methods
+| Method  | Description                                                                           |
+| :------ | :------------------------------------------------------------------------------------ |
+| `prune` | asynchronously call `.pruner()` (if it exists) and save the result to `.datasPruned`. |
 
+### `.root` (getter)
 Gets the original error at the bottom of the error chain. Recursively traverses the `cause` property until an error object without a `cause` or whose `cause` is not an `Error` instance is found.
 
 - **Returns**: `{Error}` - The root error of the error chain.
@@ -143,18 +157,17 @@ console.log(topError.root === rootCause); // true
 
 ## Advanced Feature Notes
 
-### 1. Stack Trace Cleaning
-
+### 1. `RichError`'s Stack Trace Cleaning
 `RichError` automatically removes its own constructor line from the stack string during construction, resulting in a cleaner stack trace that points directly to the business logic call site.
 
-### 2. Inheritance Support
-
-`RichError` can be used as a normal function and can be subclassed using `class extends` syntax. The prototype chain and stack trace name replacement are handled correctly internally.
+### 2. `RichError`'s Inheritance Support
+`RichError` can be subclassed using `class extends` syntax.
 
 ```javascript
 class MyCustomError extends RichError {
   constructor(message, options) {
     super(message, options);
+    this.name = 'MyCustomError';
     // Custom initialization
   }
 }
@@ -166,9 +179,12 @@ console.log(err instanceof RichError);     // true
 console.log(err instanceof Error);         // true
 ```
 
-### 3. Special Handling in `vof`
+### 3. trimming context data for `RichError`
+In most cases, `datas` is recommended to keep the most complete data for debugging. However, in practice, `datas` may be too large in size, or top-level code may need to render the data as text.\
+Therefore, the `datasPruned` / `pruner` / `prune` properties are introduced.\
+`pruner` and `prune` allow users to control the trimming timing by themselves. defining `datasPruned` as an array helps top-level code organize text.
 
+### 4. Special Handling in `vof`
 - An empty string (`''`) is identified as `<is:empty-string>` to distinguish it from undefined values.
 - `NaN`, `Infinity`, `-Infinity`, and `-0` all have specific identifier outputs to avoid being mistaken for regular numbers.
 - For objects that cannot be serialized by `JSON.stringify` (e.g., containing circular references), `vof` returns `<bad-stringify object>` to prevent exceptions from being thrown.
-```

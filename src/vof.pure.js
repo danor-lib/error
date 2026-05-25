@@ -1,9 +1,9 @@
 /**
- * Return a value type-identifier string.
+ * Return a value type-identifier string
  * @param {unknown} value
  * @returns {string}
  */
-export const vof = value => {
+export const vof = (value) => {
 	if(value === '') { return `<is:empty-string>`; }
 	else if(value === null) { return `<is:null>`; }
 	else if(value === undefined) { return `<is:undefined>`; }

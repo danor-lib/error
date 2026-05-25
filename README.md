@@ -24,21 +24,28 @@ import { RichError, vof } from '@danor-lib/error';
 
 // --- 创建增强错误 ---
 try {
-  throw new RichError('解析二进制数据失败', {
+  throw new RichError({
+    message: '解析二进制数据失败',
     code: 'error-parse-data',
     at: 'Biffer.unpack',
     data: { offset: 0x10, expected: '4s' },
+    pruner: (data) => `{${data.expected}} at ${data.offset}`
     cause: new Error('Buffer 长度不足'),
-    internal: false
+    internal: false,
   });
-} catch (err) {
-  console.error(err.message);        // '解析二进制数据失败'
-  console.error(err.code);           // 'error-parse-data'
-  console.error(err.at);             // 'Biffer.unpack'
-  console.error(err.data);           // { offset: 0x10, expected: '4s' }
-  console.error(err.cause);          // Error: Buffer 长度不足
-  console.error(err.stack);          // 堆栈已自动清理 RichError 构造器行
-  console.error(err.root);           // 返回错误链最底层的原始错误
+} catch (error) {
+  console.error(error.message);        // '解析二进制数据失败'
+  console.error(error.code);           // 'error-parse-data'
+  console.error(error.at);             // 'Biffer.unpack'
+  console.error(error.data);           // { offset: 0x10, expected: '4s' }
+  console.error(error.datasPruned);    // undefined
+  console.error(error.pruner);         // Function
+  console.error(error.cause);          // Error: Buffer 长度不足
+  console.error(error.stack);          // 堆栈已自动清理 RichError 构造器行
+  console.error(error.root);           // 返回错误链最底层的原始错误
+
+  await error.prune();
+  console.error(error.datasPruned);    // '{4s} at 16'
 }
 
 // --- 类型标识 (vof) ---
@@ -51,24 +58,26 @@ console.log(vof(''));                // '<is:empty-string>'
 
 ## 核心概念
 
-`@danor-lib/error` 提供两个核心导出：
+`@danor-lib/error` 提供两个无副作用的核心导出：
 
-| 导出        | 类型                 | 说明                                         |
-| :---------- | :------------------- | :------------------------------------------- |
-| `RichError` | `class` / `function` | 增强的错误类，支持附加元数据与错误链管理。   |
-| `vof`       | `function`           | 返回值的类型标识字符串，便于调试与日志记录。 |
+| 导出        | 类型       | 说明                                         |
+| :---------- | :--------- | :------------------------------------------- |
+| `RichError` | `class`    | 增强的错误类，支持附加元数据与错误链管理。   |
+| `vof`       | `function` | 返回值的类型标识字符串，便于调试与日志记录。 |
 
 ### `RichError` 选项
 
-创建 `RichError` 时，可以传入第二个参数 `options` 对象来附加额外信息：
+创建 `RichError` 时，传入参数 `options` 对象来附加额外信息：
 
-| 属性       | 类型      | 说明                                                |
-| :--------- | :-------- | :-------------------------------------------------- |
-| `code`     | `string`  | 错误码，用于分类或程序识别。推荐slug风格            |
-| `at`       | `string`  | 标识错误发生的大概位置或方法名。                    |
-| `data`     | `any`     | 任意上下文数据，用于调试。                          |
-| `internal` | `boolean` | 是否为内部错误，用于区分暴露给用户的信息。          |
-| `cause`    | `Error`   | 引发当前错误的原始错误（符合 `Error.cause` 规范）。 |
+| 属性          | 类型       | 说明                                                |
+| :------------ | :--------- | :-------------------------------------------------- |
+| `code`        | `string`   | 错误码，用于分类或程序识别。推荐slug风格。          |
+| `at`          | `string`   | 标识错误发生的大概位置或方法名。                    |
+| `data`        | `any`      | 任意上下文数据，用于调试。                          |
+| `datasPruned` | `string[]` | 修剪过的上下文数据。                                |
+| `pruner`      | `Function` | 修剪器。在有需要时修剪上下文数据，防止内存过大。    |
+| `internal`    | `boolean`  | 是否为内部错误，用于区分暴露给用户的信息。          |
+| `cause`       | `Error`    | 引发当前错误的原始错误（符合 `Error.cause` 规范）。 |
 
 ## 静态方法
 
@@ -97,19 +106,18 @@ console.log(vof(() => {}));               // 'function (anonymous) <is:function>
 console.log(vof(function test() {}));     // 'function test <is:function>'
 ```
 
-## `RichError` 构造函数与实例属性
+## `RichError` 构造函数与实例属性/方法
 
-### `new RichError(message?, options?)`
+### `new RichError(options?)`
 
-创建一个新的 `RichError` 实例。支持直接 `new` 调用或作为普通函数调用（如 `RichError(...)`），内部自动处理原型链，确保 `instanceof` 行为正确。
+创建一个新的 `RichError` 实例。
 
 - **参数**:
-  - `message` `{string}` `可选` - 人类可读的错误描述。
-  - `options` `{Object}` `可选` - 配置选项（见上表）。
+  - `options` `{RichError}` `可选` - 配置选项（见上表）。
 
 ```javascript
-const err = new RichError('操作超时', {
-  code: 'ETIMEOUT',
+const err = new RichError({
+  code: 'timeout',
   at: 'fetchData',
   data: { url: '/api/data' }
 });
@@ -117,19 +125,25 @@ const err = new RichError('操作超时', {
 
 ### 实例属性
 
-| 属性       | 类型                            | 描述                                                     |
-| :--------- | :------------------------------ | :------------------------------------------------------- |
-| `name`     | `string`                        | 错误名称，固定为 `'RichError'`（若被继承则为子类名称）。 |
-| `message`  | `string`                        | 错误描述信息。                                           |
-| `stack`    | `string \| undefined`           | 堆栈追踪字符串（自动移除了 `RichError` 自身构造器行）。  |
-| `code`     | `number \| string \| undefined` | 传入的错误码。                                           |
-| `at`       | `string \| undefined`           | 传入的发生位置标识。                                     |
-| `data`     | `any \| undefined`              | 传入的上下文数据。                                       |
-| `internal` | `boolean \| undefined`          | 是否为内部错误标记。                                     |
-| `cause`    | `Error \| undefined`            | 原始错误（通过 `options.cause` 设置）。                  |
+| 属性          | 类型                            | 描述                                                     |
+| :------------ | :------------------------------ | :------------------------------------------------------- |
+| `name`        | `string`                        | 错误名称，固定为 `'RichError'`（若被继承则为子类名称）。 |
+| `message`     | `string`                        | 错误描述信息。                                           |
+| `stack`       | `string \| undefined`           | 堆栈追踪字符串（自动移除了 `RichError` 自身构造器行）。  |
+| `code`        | `number \| string \| undefined` | 传入的错误码。                                           |
+| `at`          | `string \| undefined`           | 传入的发生位置标识。                                     |
+| `data`        | `any \| undefined`              | 传入的上下文数据。                                       |
+| `datasPruned` | `string[] \| undefined`         | 修剪过的上下文数据文本。                                 |
+| `pruner`      | `Function \| undefined`         | 上下文数据修剪器。                                       |
+| `internal`    | `boolean \| undefined`          | 是否为内部错误标记。                                     |
+| `cause`       | `Error \| undefined`            | 原始错误（通过 `options.cause` 设置）。                  |
 
-### `root` (getter)
+### 实例方法
+| 方法    | 描述                                                            |
+| :------ | :-------------------------------------------------------------- |
+| `prune` | 异步调用`.pruner()`（如果存在），并将结果保存到`.datasPruned`。 |
 
+### `.root` (getter)
 获取错误链最底层的原始错误。沿着 `cause` 属性递归查找，直到找到一个没有 `cause` 或 `cause` 不是 `Error` 实例的错误对象。
 
 - **返回值**: `{Error}` - 错误链的根错误。
@@ -144,18 +158,17 @@ console.log(topError.root === rootCause); // true
 
 ## 高级特性说明
 
-### 1. 堆栈清理
-
+### 1. `RichError`的堆栈清理
 `RichError` 在构造时会自动从堆栈字符串中移除自身的构造器行，使得堆栈输出更加清晰，直接指向业务调用代码。
 
-### 2. 支持继承
-
-`RichError` 可以作为一个普通函数使用，并且能够配合 `class extends` 语法进行子类化。内部会正确处理原型链与堆栈中的名称替换。
+### 2. `RichError`支持继承
+`RichError` 能够配合 `class extends` 语法进行子类化。
 
 ```javascript
 class MyCustomError extends RichError {
   constructor(message, options) {
     super(message, options);
+    this.name = 'MyCustomError';
     // 自定义初始化
   }
 }
@@ -167,8 +180,12 @@ console.log(err instanceof RichError);     // true
 console.log(err instanceof Error);         // true
 ```
 
-### 3. `vof` 的特殊处理
+### 3. `RichError`的上下文数据修剪
+多数情况下，`datas`是推荐保存最完整的数据以便调试。但实际应用，`datas`可能存在数据体积太大，或顶层代码需要渲染数据为文本等情况。
+因此引入`datasPruned`/`pruner`/`prune`的属性。\
+`pruner`与`prune`可以让使用者自行控制修剪时机。而将`datasPruned`定义为数组，有利用顶层代码组织文本。
 
+### 4. `vof` 的特殊处理
 - 空字符串 (`''`) 被标识为 `<is:empty-string>`，便于区分空字符串与未定义值。
 - `NaN`、`Infinity`、`-Infinity` 和 `-0` 都有特定的标识输出，避免被误认为是普通数字。
-- 对于无法被 `JSON.stringify` 序列化的对象（如包含循环引用），`vof` 会返回 `<bad-stringify object>`，防止抛出异常。
+- 对于无法被 `JSON.stringify` 序列化的对象（如包含循环引用），`vof` 会返回 `<bad-stringify object>`，不会抛出异常。

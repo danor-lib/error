@@ -1,6 +1,6 @@
 {
 	"name": "@danor-lib/error",
-	"version": "1.0.0",
+	"version": "2.0.0",
 	"description": "A feature-rich Error (compared to native)",
 	"author": "DanoR",
 	"license": "LGPL-3.0-or-later",
@@ -16,7 +16,7 @@
 		"browser"
 	],
 	"engines": {
-		"node": ">=24"
+		"node": ">=26"
 	},
 	"files": [
 		"index.js",
@@ -28,8 +28,8 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@stylistic/eslint-plugin": "^5.10.0",
-		"@types/node": "^24.12.2",
-		"eslint": "^10.2.0",
-		"globals": "^17.5.0"
+		"@types/node": "^25.9.1",
+		"eslint": "^10.4.0",
+		"globals": "^17.6.0"
 	}
 }
