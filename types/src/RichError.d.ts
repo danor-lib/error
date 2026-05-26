@@ -19,7 +19,7 @@ export class RichError extends Error {
 	/** A pruned version of `.data` */
 	datasPruned?: string[];
 	/** A function for pruning `.data` */
-	pruner?: (data: unknown) => string[]|Promise<string[]>;
+	pruner?: (data: unknown) => string[] | Promise<string[]>;
 	/** A boolean flag indicating whether the error is internal and should not be exposed to end users */
 	internal?: boolean;
 

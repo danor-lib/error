@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2.0.1 - 2026.05.26 16
+* docs: **IMPORTANT!** update license to ***MIT***
+* docs: add refactoring note in README
+* chore: tweak some files
+
+
 ## v2.0.0 - 2026.05.25 15
 * feat!: `RichError` no longer mimics the native Error constructor. it is now not allowed to construct a `RichError` directly via `Error()`
 * feat!: due to a change in design philosophy, the first parameter `message` of `RichError` is no longer considered necessary

@@ -9,7 +9,7 @@
 
 # @danor-lib/error
 ![Version](https://img.shields.io/github/package-json/v/danor-lib/error?style=flat-square)
-[![License](https://img.shields.io/github/license/danor-lib/error?style=flat-square)](https://www.gnu.org/licenses/lgpl-3.0-standalone.html)
+[![License](https://img.shields.io/github/license/danor-lib/error?style=flat-square)](https://opensource.org/license/mit)
 
 A lightweight error enhancement and type identification utility, suitable for both Node.js and browser environments.
 

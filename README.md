@@ -9,7 +9,7 @@
 
 # @danor-lib/error
 ![Version](https://img.shields.io/github/package-json/v/danor-lib/error?style=flat-square)
-[![License](https://img.shields.io/github/license/danor-lib/error?style=flat-square)](https://www.gnu.org/licenses/lgpl-3.0-standalone.html)
+[![License](https://img.shields.io/github/license/danor-lib/error?style=flat-square)](https://opensource.org/license/mit)
 
 一个轻量级的错误增强与类型标识工具，适用于 Node.js 与浏览器环境。\
 A lightweight error enhancement and type identification utility, suitable for both Node.js and browser environments.
@@ -33,7 +33,8 @@ try {
     cause: new Error('Buffer 长度不足'),
     internal: false,
   });
-} catch (error) {
+}
+catch (error) {
   console.error(error.message);        // '解析二进制数据失败'
   console.error(error.code);           // 'error-parse-data'
   console.error(error.at);             // 'Biffer.unpack'

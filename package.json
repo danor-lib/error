@@ -1,9 +1,9 @@
 {
 	"name": "@danor-lib/error",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "A feature-rich Error (compared to native)",
 	"author": "DanoR",
-	"license": "LGPL-3.0-or-later",
+	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/danor-lib/error.git"
@@ -21,6 +21,7 @@
 	"files": [
 		"index.js",
 		"src/**/*.js",
+		"types.ts",
 		"types/**"
 	],
 	"main": "./index.js",
