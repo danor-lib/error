@@ -48,11 +48,11 @@ try {
 }
 
 // --- Type identification (vof) ---
-console.log(vof(null));              // '<is:null>'
-console.log(vof([1, 2, 3]));         // '1,2,3 <is:Array(3)>'
-console.log(vof(NaN));               // '<is:NaN>'
-console.log(vof(() => {}));          // 'function (anonymous) <is:function>'
-console.log(vof(''));                // '<is:empty-string>'
+console.log(vof(null));              // 'null'
+console.log(vof([1, 2, 3]));         // 'array(3)'
+console.log(vof(NaN));               // 'number(nan)'
+console.log(vof(() => {}));          // 'function'
+console.log(vof(''));                // 'string(0)'
 ```
 
 ## Core Concepts
@@ -82,27 +82,52 @@ When creating a `RichError`, you can pass a second `options` object argument to 
 
 ### `vof(value)`
 
-Returns a string describing the type and content of a value, very useful for debugging and logging.
+Returns a string identifying the type of a value. Unlike serialization, `vof` only outputs type information (with summaries such as length or function name) and **does not include the value's own content**.
 
 - **Parameters**:
   - `value` `{unknown}` - Any value to identify.
-- **Returns**: `{string}` - Type description string.
+- **Returns**: `{string}` - Type identifier string.
+
+#### Return Format Reference
+
+| Input                                     | Return value                             |
+| :---------------------------------------- | :--------------------------------------- |
+| `undefined`                               | `undefined`                              |
+| `null`                                    | `null`                                   |
+| `''`                                      | `string(0)`                              |
+| `'hello'`                                 | `string(5)`                              |
+| `42`                                      | `number`                                 |
+| `NaN`                                     | `number(nan)`                            |
+| `Infinity` / `-Infinity`                  | `number(infinity)` / `number(-infinity)` |
+| `-0`                                      | `number(-0)`                             |
+| `true` / `false`                          | `boolean`                                |
+| `10n`                                     | `bigint`                                 |
+| `Symbol()` / `Symbol('id')`               | `symbol` / `symbol(id)`                  |
+| `() => {}`                                | `function`                               |
+| `function test() {}`                      | `function(test)`                         |
+| `async () => {}`                          | `function<async>`                        |
+| `function* gen() {}`                      | `function<generator>(gen)`               |
+| `async function* gen() {}`                | `function<async-generator>(gen)`         |
+| `class Foo {}`                            | `class(Foo)`                             |
+| `[1, 2]`                                  | `array(2)`                               |
+| `new TypeError()`                         | `error(TypeError)`                       |
+| `new Map([[1, 1]])`                       | `map(1)`                                 |
+| `new Set([1, 2])`                         | `set(2)`                                 |
+| `new ArrayBuffer(8)`                      | `arraybuffer(8)`                         |
+| `new DataView(new ArrayBuffer(4))`        | `dataview(4)`                            |
+| `new Uint8Array(4)`                       | `typed-array<uint8>(4)`                  |
+| `new Float64Array(2)`                     | `typed-array<float64>(2)`                |
+| `Promise.resolve()`                       | `promise`                                |
+| `/a/g`                                    | `regexp`                                 |
+| `new Date()`                              | `date`                                   |
+| `new WeakMap()` / `new WeakSet()`         | `weakmap` / `weakset`                    |
+| `{ a: 1 }`, any other unrecognized object | `object`                                 |
 
 ```javascript
 import { vof } from '@danor-lib/error';
 
-console.log(vof(undefined));              // '<is:undefined>'
-console.log(vof(null));                   // '<is:null>'
-console.log(vof(''));                     // '<is:empty-string>'
-console.log(vof('hello'));                // 'hello <is:string(5)>'
-console.log(vof(42));                     // '42 <is:number>'
-console.log(vof(-0));                     // '-0 <is:number>'
-console.log(vof(NaN));                    // '<is:NaN>'
-console.log(vof(Infinity));               // '<is:Infinity>'
-console.log(vof({ a: 1 }));               // '{"a":1} <is:object>'
-console.log(vof([1, 2]));                 // '1,2 <is:Array(2)>'
-console.log(vof(() => {}));               // 'function (anonymous) <is:function>'
-console.log(vof(function test() {}));     // 'function test <is:function>'
+console.log(vof(new Uint8Array(4)));      // 'typed-array<uint8>(4)'
+console.log(vof(new TypeError()));        // 'error(TypeError)'
 ```
 
 ## `RichError` Constructor and Instance Properties/Methods
@@ -185,6 +210,5 @@ Therefore, the `datasPruned` / `pruner` / `prune` properties are introduced.\
 `pruner` and `prune` allow users to control the trimming timing by themselves. defining `datasPruned` as an array helps top-level code organize text.
 
 ### 4. Special Handling in `vof`
-- An empty string (`''`) is identified as `<is:empty-string>` to distinguish it from undefined values.
-- `NaN`, `Infinity`, `-Infinity`, and `-0` all have specific identifier outputs to avoid being mistaken for regular numbers.
-- For objects that cannot be serialized by `JSON.stringify` (e.g., containing circular references), `vof` returns `<bad-stringify object>` to prevent exceptions from being thrown.
+- Typed arrays are uniformly identified as `typed-array<elementType>(length)`, where the element type is the lowercased constructor name (e.g. `Uint8Array` → `uint8`).
+- `Error` and its subclasses are uniformly identified as `error(constructorName)`. It prefers `Error.isError` (which recognizes cross-realm error objects) and falls back to `value instanceof Error` on runtimes that do not support it.

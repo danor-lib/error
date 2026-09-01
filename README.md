@@ -50,11 +50,11 @@ catch (error) {
 }
 
 // --- 类型标识 (vof) ---
-console.log(vof(null));              // '<is:null>'
-console.log(vof([1, 2, 3]));         // '1,2,3 <is:Array(3)>'
-console.log(vof(NaN));               // '<is:NaN>'
-console.log(vof(() => {}));          // 'function (anonymous) <is:function>'
-console.log(vof(''));                // '<is:empty-string>'
+console.log(vof(null));              // 'null'
+console.log(vof([1, 2, 3]));         // 'array(3)'
+console.log(vof(NaN));               // 'number(nan)'
+console.log(vof(() => {}));          // 'function'
+console.log(vof(''));                // 'string(0)'
 ```
 
 ## 核心概念
@@ -80,31 +80,54 @@ console.log(vof(''));                // '<is:empty-string>'
 | `internal`    | `boolean`  | 是否为内部错误，用于区分暴露给用户的信息。          |
 | `cause`       | `Error`    | 引发当前错误的原始错误（符合 `Error.cause` 规范）。 |
 
-## 静态方法
-
 ### `vof(value)`
 
-返回一个描述值类型与内容的字符串，对于调试和日志记录非常有用。
+返回一个标识值类型的字符串。与序列化不同，`vof` 只输出类型信息（并附带长度、函数名等摘要），**不包含值本身的内容**。
 
 - **参数**:
   - `value` `{unknown}` - 需要标识的任意值。
-- **返回值**: `{string}` - 类型描述字符串。
+- **返回值**: `{string}` - 类型标识字符串。
+
+#### 返回格式对照
+
+| 输入                               | 返回值                                   |
+| :--------------------------------- | :--------------------------------------- |
+| `undefined`                        | `undefined`                              |
+| `null`                             | `null`                                   |
+| `''`                               | `string(0)`                              |
+| `'hello'`                          | `string(5)`                              |
+| `42`                               | `number`                                 |
+| `NaN`                              | `number(nan)`                            |
+| `Infinity` / `-Infinity`           | `number(infinity)` / `number(-infinity)` |
+| `-0`                               | `number(-0)`                             |
+| `true` / `false`                   | `boolean`                                |
+| `10n`                              | `bigint`                                 |
+| `Symbol()` / `Symbol('id')`        | `symbol` / `symbol(id)`                  |
+| `() => {}`                         | `function`                               |
+| `function test() {}`               | `function(test)`                         |
+| `async () => {}`                   | `function<async>`                        |
+| `function* gen() {}`               | `function<generator>(gen)`               |
+| `async function* gen() {}`         | `function<async-generator>(gen)`         |
+| `class Foo {}`                     | `class(Foo)`                             |
+| `[1, 2]`                           | `array(2)`                               |
+| `new TypeError()`                  | `error(TypeError)`                       |
+| `new Map([[1, 1]])`                | `map(1)`                                 |
+| `new Set([1, 2])`                  | `set(2)`                                 |
+| `new ArrayBuffer(8)`               | `arraybuffer(8)`                         |
+| `new DataView(new ArrayBuffer(4))` | `dataview(4)`                            |
+| `new Uint8Array(4)`                | `typed-array<uint8>(4)`                  |
+| `new Float64Array(2)`              | `typed-array<float64>(2)`                |
+| `Promise.resolve()`                | `promise`                                |
+| `/a/g`                             | `regexp`                                 |
+| `new Date()`                       | `date`                                   |
+| `new WeakMap()` / `new WeakSet()`  | `weakmap` / `weakset`                    |
+| `{ a: 1 }`、其他未被识别的对象     | `object`                                 |
 
 ```javascript
 import { vof } from '@danor-lib/error';
 
-console.log(vof(undefined));              // '<is:undefined>'
-console.log(vof(null));                   // '<is:null>'
-console.log(vof(''));                     // '<is:empty-string>'
-console.log(vof('hello'));                // 'hello <is:string(5)>'
-console.log(vof(42));                     // '42 <is:number>'
-console.log(vof(-0));                     // '-0 <is:number>'
-console.log(vof(NaN));                    // '<is:NaN>'
-console.log(vof(Infinity));               // '<is:Infinity>'
-console.log(vof({ a: 1 }));               // '{"a":1} <is:object>'
-console.log(vof([1, 2]));                 // '1,2 <is:Array(2)>'
-console.log(vof(() => {}));               // 'function (anonymous) <is:function>'
-console.log(vof(function test() {}));     // 'function test <is:function>'
+console.log(vof(new Uint8Array(4)));      // 'typed-array<uint8>(4)'
+console.log(vof(new TypeError()));        // 'error(TypeError)'
 ```
 
 ## `RichError` 构造函数与实例属性/方法
@@ -187,6 +210,5 @@ console.log(err instanceof Error);         // true
 `pruner`与`prune`可以让使用者自行控制修剪时机。而将`datasPruned`定义为数组，有利用顶层代码组织文本。
 
 ### 4. `vof` 的特殊处理
-- 空字符串 (`''`) 被标识为 `<is:empty-string>`，便于区分空字符串与未定义值。
-- `NaN`、`Infinity`、`-Infinity` 和 `-0` 都有特定的标识输出，避免被误认为是普通数字。
-- 对于无法被 `JSON.stringify` 序列化的对象（如包含循环引用），`vof` 会返回 `<bad-stringify object>`，不会抛出异常。
+- 定型数组统一标识为 `typed-array<元素类型>(长度)`，元素类型取自构造函数名的小写形式（如 `Uint8Array` → `uint8`）。
+- `Error` 及其子类统一标识为 `error(构造函数名)`。优先使用 `Error.isError`（可识别跨 realm 的错误对象），在不支持该方法的旧运行时中回退为 `value instanceof Error`。

@@ -1,4 +1,4 @@
-import type { RichErrorOption } from '../types.d.ts';
+import type { RichErrorOption } from '../types.ts';
 
 
 
